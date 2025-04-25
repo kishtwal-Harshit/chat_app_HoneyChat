@@ -66,7 +66,7 @@ const MessageInput = () => {
   const generateAiResponse = async (prompt) => {
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:5001/api/messages/generate", {
+      const response = await fetch("https://chat-app-honeychat.onrender.com/api/messages/generate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -14,6 +14,7 @@
     "@google/generative-ai": "^0.24.0",
     "backend": "file:",
     "bcryptjs": "^2.4.3",
+    "chat-app": "file:..",
     "cloudinary": "^2.6.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
