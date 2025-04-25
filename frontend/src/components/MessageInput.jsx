@@ -1,18 +1,19 @@
 import { useRef, useState } from "react";
 import { useChatStore } from "../store/useChatStore";
-import { Sparkles, Image, Send, X } from "lucide-react";
+import { Sparkles, Image, Send, X, Ban } from "lucide-react";
 import toast from "react-hot-toast";
 
 const MessageInput = () => {
   const [text, setText] = useState("");
   const [imagePreview, setImagePreview] = useState(null);
   const fileInputRef = useRef(null);
-  const { sendMessage } = useChatStore();
+  const { sendMessage, banUser } = useChatStore();
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [dialogText, setDialogText] = useState("");
   const [aiResponse, setAiResponse] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isBanned, setIsBanned] = useState(false); 
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -97,6 +98,17 @@ const MessageInput = () => {
     }
   };
 
+  const handleBan = async () => {
+    try {
+      await banUser({isBanned});
+      setIsBanned(!isBanned); 
+      
+    } catch (error) {
+      console.error("Failed to ban/unban the user:", error);
+     
+    }
+  };
+
   return (
     <div className="p-4 w-full">
       {imagePreview && (
@@ -150,6 +162,14 @@ const MessageInput = () => {
           >
             <Sparkles size={30} />
           </button>
+
+          <button
+            type="button"
+            className={`hidden sm:flex btn btn-circle ${isBanned ? "bg-red-600 text-white" : "text-zinc-400"}`}
+            onClick={handleBan}
+          >
+            <Ban size={20} />
+          </button>
         </div>
 
         <button
@@ -191,19 +211,19 @@ const MessageInput = () => {
             </div>
 
             {aiResponse && (
-  <div className="mt-4">
-    <h3 className="font-bold text-lg mb-2">AI Response:</h3>
-    <div className="border p-2 rounded-lg max-h-48 overflow-y-auto w-full text-sm whitespace-pre-wrap">
-      {aiResponse}
-    </div>
-    <button
-      onClick={handleCopyResponse}
-      className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-lg"
-    >
-      Copy Response
-    </button>
-  </div>
-)}
+              <div className="mt-4">
+                <h3 className="font-bold text-lg mb-2">AI Response:</h3>
+                <div className="border p-2 rounded-lg max-h-48 overflow-y-auto w-full text-sm whitespace-pre-wrap">
+                  {aiResponse}
+                </div>
+                <button
+                  onClick={handleCopyResponse}
+                  className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-lg"
+                >
+                  Copy Response
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

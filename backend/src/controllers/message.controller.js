@@ -41,6 +41,13 @@ export const sendMessage = async (req, res) => {
     const { text, image } = req.body;
     const { id: receiverId } = req.params;
     const senderId = req.user._id;
+
+    const receiver = await User.findById(receiverId);
+    const isBlocked = receiver['blockedUsers'].some(id => id.toString() === senderId.toString());
+
+    if(isBlocked) return res.status(400).json({message : "you have been blocked!, unable to deliver the message"});
+
+
     let imageUrl;
     if (image) {
       console.log('image here')
@@ -97,7 +104,7 @@ export const deleteMessage = async (req,res)=>{
     console.log("Error in deleteMessage controller: ", error.message);
     res.status(500).json({ error: "Internal server error" });
   }
-}
+};
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
@@ -115,5 +122,63 @@ export const generateResponse = async (req, res) => {
   } catch (error) {
     console.error("AI Error:", error);
     res.status(500).json({ error: "Failed to generate response" });
+  }
+};
+
+export const blockUser = async (req,res)=>{
+
+  try{
+
+      const userId = req.user._id;
+      const {id : blockUserId} = req.params;
+
+      const userToBeBlockedExists = await User.findById(blockUserId);
+
+      if(!userToBeBlockedExists) return res.status(401).json({error : "no user with this user id exists"});
+      const blockUser = await User.findByIdAndUpdate(
+        userId,
+        {
+          $push:
+            {blockedUsers : blockUserId}
+          
+        },
+        {new : true},
+      );
+
+      if(!blockUser) return res.status(501).json({error : "Falied to block the user"});
+
+      return res.status(200).json({message : "user blocked successfully"});
+
+  } catch(error){
+    return res.status(501).json({error : "Internal server error"});
+  }
+};
+
+export const unblockUser = async(req,res)=>{
+
+  try{
+
+      const userId = req.user._id;
+      const {id : unblockUserId} = req.params;
+
+      const userToBeUnblockedExists = await User.findById(unblockUserId);
+      if(!userToBeUnblockedExists) return res.status(401).json({error : "no user with this user id exists"});
+
+      const unblockUser = await User.findByIdAndUpdate(
+        userId,
+        {
+          $pull:
+           {blockedUsers : unblockUserId}
+        },
+        {new: true},
+      );
+
+      if(!unblockUser) return res.status(501).json({error : "Falied to unblock the user"});
+
+      return res.status(200).json({message : "user unblocked successfully"});
+    
+
+  } catch(error){
+    return res.status(501).json({error : "Internal server error"});
   }
 };

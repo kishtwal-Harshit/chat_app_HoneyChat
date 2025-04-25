@@ -1,6 +1,6 @@
 import express from "express";
 import { protectRoute } from "../middleware/auth.middleware.js";
-import { getMessages, getUsersForSidebar, sendMessage, generateResponse } from "../controllers/message.controller.js";
+import { getMessages, getUsersForSidebar, sendMessage, generateResponse, blockUser, unblockUser } from "../controllers/message.controller.js";
 
 const router = express.Router();
 
@@ -9,5 +9,7 @@ router.get("/:id", protectRoute, getMessages);
 router.post("/send/:id", protectRoute, sendMessage);
 
 router.post("/generate", generateResponse);
+router.post("/block/:id", protectRoute,blockUser);
+router.post("/unblock/:id", protectRoute,unblockUser);
 
 export default router;
