@@ -63,10 +63,11 @@ const MessageInput = () => {
     setAiResponse("");
   };
 
+  let url = import.meta.env.MODE === "development" ? "http://localhost:5001/api/messages/generate" : "https://chat-app-honeychat.onrender.com/api/messages/generate";
   const generateAiResponse = async (prompt) => {
     setLoading(true);
     try {
-      const response = await fetch("https://chat-app-honeychat.onrender.com/api/messages/generate", {
+      const response = await fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
