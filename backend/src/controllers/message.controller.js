@@ -125,7 +125,7 @@ export const generateResponse = async (req, res) => {
   }
 };
 
-export const blockUser = async (req,res)=>{
+/*export const blockUser = async (req,res)=>{
 
   try{
 
@@ -181,4 +181,49 @@ export const unblockUser = async(req,res)=>{
   } catch(error){
     return res.status(501).json({error : "Internal server error"});
   }
+};*/
+
+export const toggleBan = async (req,res)=>{
+
+    try{
+      const userId = req.user._id;
+      const {id : targetUser} = req.params;
+      
+      const user = await User.findById(userId);
+
+      const isBlocked = user['blockedUsers'].includes(targetUser);
+      
+      if(isBlocked){
+        const unblockUser = await User.findByIdAndUpdate(
+          userId,
+          {
+            $pull:
+             {blockedUsers : targetUser}
+          },
+          {new: true},
+        );
+  
+        if(!unblockUser) return res.status(501).json({error : "Falied to unblock the user"});
+  
+        return res.status(200).json({message : "user unblocked successfully"});
+      }
+      else{
+        const blockUser = await User.findByIdAndUpdate(
+          userId,
+          {
+            $push:
+              {blockedUsers : targetUser}
+            
+          },
+          {new : true},
+        );
+  
+        if(!blockUser) return res.status(501).json({error : "Falied to block the user"});
+  
+        return res.status(200).json({message : "user blocked successfully"});
+      }
+
+    } catch(error){
+      return res.status(501).json({error : "Internal server error"});
+    }
 };

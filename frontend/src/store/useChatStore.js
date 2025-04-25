@@ -42,19 +42,18 @@ export const useChatStore = create((set, get) => ({
       toast.error(error.response.data.message);
     }
   },
-  banUser : async({isBanned}) => {
+  banUser : async() => {
     const {selectedUser} = get();
     try{
-      console.log(isBanned);
-      let res = null;
-      if(isBanned){
+      let res = await axiosInstance.post(`/messages/toggle-ban/${selectedUser._id}`);
+      /*if(isBanned){
         console.log("here1");
         res = await axiosInstance.post(`/messages/unblock/${selectedUser._id}`);
       }
       else{
         console.log("here2"); 
         res = await axiosInstance.post(`/messages/block/${selectedUser._id}`);
-      }
+      }*/
       toast.success(res.data.message);
     } catch(error){
       toast.error(error.response.data.message);

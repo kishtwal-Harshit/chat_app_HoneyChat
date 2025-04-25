@@ -13,7 +13,7 @@ const MessageInput = () => {
   const [dialogText, setDialogText] = useState("");
   const [aiResponse, setAiResponse] = useState("");
   const [loading, setLoading] = useState(false);
-  const [isBanned, setIsBanned] = useState(false); 
+ 
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -101,8 +101,7 @@ const MessageInput = () => {
 
   const handleBan = async () => {
     try {
-      await banUser({isBanned});
-      setIsBanned(!isBanned); 
+      await banUser();
       
     } catch (error) {
       console.error("Failed to ban/unban the user:", error);
@@ -166,7 +165,7 @@ const MessageInput = () => {
 
           <button
             type="button"
-            className={`hidden sm:flex btn btn-circle ${isBanned ? "bg-red-600 text-white" : "text-zinc-400"}`}
+            className={`hidden sm:flex btn btn-circle "text-zinc-400"}`}
             onClick={handleBan}
           >
             <Ban size={20} />
