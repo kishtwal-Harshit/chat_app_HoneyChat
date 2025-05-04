@@ -11,6 +11,7 @@ import { connectDB } from "./lib/db.js";
 //import aiRoutes from "./routes/aiRoutes.js";
 import authRoutes from "./routes/auth.route.js";
 import messageRoutes from "./routes/message.route.js";
+import groupRoutes from "./routes/group.route.js";
 import { app, server } from "./lib/socket.js";
 
 console.log(process.env.MONGODB_URI)
@@ -30,6 +31,7 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
+app.use("/api/group",groupRoutes);
 //app.use("/api", aiRoutes); 
 
 if (process.env.NODE_ENV === "production") {
