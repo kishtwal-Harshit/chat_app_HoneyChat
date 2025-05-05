@@ -88,20 +88,37 @@ export const getGroupNames = async (req, res) => {
   };
   
 
-export const getGroupMembers = async(req,res)=>{
+  export const getGroupMembers = async (req, res) => {
+    try {
+        const { id: group_id } = req.params;
 
-    try{
+        // Find the group and populate all member details in one query
+        const group = await Group.findById(group_id)
+            .populate({
+                path: 'members',
+                select: '-password', // exclude password
+                model: 'User' // specify the model to populate from
+            })
+            .lean();
 
-        const user = req.user._id;
-        const {id : group_id} = req.params;
-        const members = await Group.find({_id : group_id}).select("members");
+        if (!group || !group.members || group.members.length === 0) {
+            return res.status(200).json({ members: [] }); // Return empty array instead of error
+        }
 
-        if(members.length===0) return res.status(400).json({error : "no members available in this group"});
+        // Return members with all their user data
+        return res.status(200).json({ 
+            members: group.members.map(member => ({
+                _id: member._id,
+                username: member.username,
+                fullName: member.fullName,
+                profilePic: member.profilePic,
+                // include any other needed user fields
+            }))
+        });
 
-        return res.status(200).json({members});
-
-    } catch(error){
-        return res.status(500).json({error : "internal server error in fetching group members"});
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ error: "Failed to fetch group members" });
     }
 };
 
