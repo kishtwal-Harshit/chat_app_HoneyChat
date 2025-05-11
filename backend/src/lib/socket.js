@@ -33,6 +33,10 @@ io.on("connection", (socket) => {
     io.emit("getOnlineUsers", Object.keys(userSocketMap));
     
   });
+  socket.on('sendGroupMessage', ({ groupId, message }) => {
+  // Save to DB
+  io.to(groupId).emit('newGroupMessage', message);
 });
 
+});
 export { io, app, server };

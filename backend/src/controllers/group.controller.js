@@ -85,7 +85,7 @@ export const getGroupNames = async (req, res) => {
     } catch (error) {
       return res.status(500).json({ error: "Internal server error in fetching group names" });
     }
-  };
+};
   
 
   export const getGroupMembers = async (req, res) => {
@@ -125,11 +125,14 @@ export const getGroupNames = async (req, res) => {
 export const makeAdmin = async(req,res)=>{
 
     try{
+        //console.log("here")
         const user = req.user._id;
-        const {id : group_id} = req.params;
-        const {target : target_user} = req.params; 
+        const {id : group_id, target : target_user} = req.params;
+       
+        //console.log(group_id);
+        //console.log(target_user);
         const group = await Group.findById(group_id);
-        const isUserAdmin = group['admins'].includes(user.toString());
+        const isUserAdmin = group['admins'].includes(user);
 
         if(!isUserAdmin) return res.status(400).json({error : "user is not admin and cannot make others admin"});
         
@@ -193,3 +196,84 @@ export const addMember = async (req, res) => {
         return res.status(500).json({ error: "Internal server error in adding user to the group" });
     }
 }
+
+export const isAdmin = async(req,res)=>{
+
+    try{
+        const user = req.user._id;
+        const {id : groupId,id1 : userId} = req.params;
+        
+        const group = await Group.findById(groupId);
+       // console.log("--------cur person : ",userId);
+        //console.log("---------group info : ",group);
+        const isAdmin = group['admins'].includes(userId);
+        //console.log(group['admins'].includes(userId));
+        if(isAdmin) return res.status(200).json({isAdmin : true});
+        else return res.status(200).json({isAdmin : false});
+
+    }
+    catch(error){
+        return res.status(500).json({error : "Internal server error in fetching admin status"});
+    }
+}
+
+export const getAdmins = async (req, res) => {
+  try {
+    const { id: groupId } = req.params;
+    const group = await Group.findById(groupId).populate("admins", "_id");
+    res.status(200).json({ admins: group.admins });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch admins" });
+  }
+};
+
+export const removeFromGroup = async (req,res)=>{
+
+    try{
+        const user = req.user._id;
+        const {id : group_id, target : target_user} = req.params;
+        //console.log(group_id);
+        //console.log(target_user);
+        const group = await Group.findById(group_id);
+        const isUserAdmin = group['admins'].includes(user);
+
+        if(!isUserAdmin) return res.status(400).json({error : "user is not admin and cannot remove other users"});
+        
+        const isTargetUserinGroup = group['members'].includes(target_user.toString());
+
+        if(!isTargetUserinGroup) return res.status(400).json({error : "cant remove user as intended user is not a part of the group"});
+
+        const isTargetUserAdmin = group['admins'].includes(target_user);
+        if(isTargetUserAdmin) return res.status(400).json({error : "cant remove user as user is also an admin"});
+
+        const removeUser = await Group.findByIdAndUpdate(
+            group_id,
+            {
+            
+                $pull : {members : target_user}
+            },
+            {new : true,}
+        );
+
+        if(!removeUser) return res.status(400).json({error : "error in removing user"});
+
+        return res.status(200).json({message : "sucessfully removed user"})
+    } catch(error){
+        return res.status(500).json({error : "internal server error in removing user"});
+    }
+};
+
+export const groupSize = async (req,res)=>{
+    
+    try{
+        const {id : group_id} = req.params;
+        //console.log(group_id);
+        const group = await Group.findById(group_id);
+        const groupSize = group['members'].length;
+        //console.log(groupSize);
+        return res.status(200).json({size : groupSize});
+
+    } catch(error){
+        return res.status(500).json({error : "internal server error in fetching group size"});
+    }
+};
