@@ -37,6 +37,9 @@ io.on("connection", (socket) => {
   // Save to DB
   io.to(groupId).emit('newGroupMessage', message);
 });
+  socket.on("joinGroup", (groupId) => {
+  socket.join(groupId);
+});
 
 });
 export { io, app, server };

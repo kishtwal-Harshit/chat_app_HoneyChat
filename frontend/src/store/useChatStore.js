@@ -118,7 +118,7 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-  sendGroupMessage: async (messageData) => {
+  /*sendGroupMessage: async (messageData) => {
     const { selectedGroupId, groupMessages } = get();
     try {
       const res = await axiosInstance.post(`/group/send/${selectedGroupId}`, messageData);
@@ -126,7 +126,30 @@ export const useChatStore = create((set, get) => ({
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to send group message");
     }
-  },
+  },*/
+  sendGroupMessage: async (messageData) => {
+  const { selectedGroupId, groupMessages } = get();
+  const socket = useAuthStore.getState().socket;
+
+  try {
+    const res = await axiosInstance.post(`/group/send/${selectedGroupId}`, messageData);
+
+    const newMessage = res.data;
+
+    // 1. Update local state
+    set({ groupMessages: [...groupMessages, newMessage] });
+
+    // 2. Emit to socket
+    socket.emit("sendGroupMessage", {
+      groupId: selectedGroupId,
+      message: newMessage
+    });
+
+  } catch (error) {
+    toast.error(error.response?.data?.message || "Failed to send group message");
+  }
+},
+
 
   getGroupMembers: async (groupId) => {
     try {
@@ -137,7 +160,7 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-  subscribeToGroupMessages: (groupId) => {
+  /*subscribeToGroupMessages: (groupId) => {
     const socket = useAuthStore.getState().socket;
     socket.join(groupId);
 
@@ -149,7 +172,22 @@ export const useChatStore = create((set, get) => ({
         groupMessages: [...get().groupMessages, newMessage],
       });
     });
-  },
+  },*/
+  subscribeToGroupMessages: (groupId) => {
+  const socket = useAuthStore.getState().socket;
+
+  // Emit a request to the server to join the group
+  socket.emit("joinGroup", groupId); // Server should handle this
+
+  socket.on("newGroupMessage", (newMessage) => {
+    const { selectedGroupId, groupMessages } = get();
+    if (newMessage.groupId !== selectedGroupId) return;
+
+    set({
+      groupMessages: [...groupMessages, newMessage],
+    });
+  });
+},
 
   unsubscribeFromGroupMessages: () => {
     const socket = useAuthStore.getState().socket;
@@ -199,16 +237,18 @@ export const useChatStore = create((set, get) => ({
     selectedGroupId: null 
   }),
 
-  setSelectedGroup: (group) => set({ 
-    selectedGroup: group?.name,
-    selectedGroupId: group?._id,
-    selectedUser: null
-  }),
-
-  setSelectedGroupId: (groupId) => set({ 
+ setSelectedGroupId: (groupId) => set({ 
   selectedGroupId: groupId,
-  selectedUser: null,
-  selectedGroup: null 
+  selectedUser: null,  // Clear user selection
+  messages: []        // Clear 1:1 messages
 }),
+
+setSelectedGroup: (group) => set({ 
+  selectedGroup: group?.name || null,
+  selectedGroupId: group?._id || null,
+  selectedUser: null,
+  messages: []
+}),
+
 
 }));

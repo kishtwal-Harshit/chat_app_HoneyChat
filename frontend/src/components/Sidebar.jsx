@@ -15,7 +15,7 @@ const Sidebar = () => {
     setSelectedUser, 
     isUsersLoading,
     setSelectedGroupId,
-    setSelectedGroup,
+    //setSelectedGroup,
     selectedGroupId,
   } = useChatStore();
   
@@ -41,7 +41,7 @@ const Sidebar = () => {
   const [displayedItems, setDisplayedItems] = useState([]);
   const [displayTitle, setDisplayTitle] = useState("Contacts");
   const [showGroupMembersView, setShowGroupMembersView] = useState(false);
-
+  console.log(currentGroupName,groupSize);
   // Fetch initial data
   useEffect(() => {
     getUsers();
@@ -77,8 +77,8 @@ const Sidebar = () => {
   // Handle contacts button click
   const handleContactsClick = () => {
     setShowGroupMembersView(false);
-    setSelectedGroupId(null);
-    setSelectedGroup(null);
+    //setSelectedGroupId(null);
+    //setSelectedGroup(null);
     setSelectedUser(null);
   };
 
@@ -110,34 +110,35 @@ const Sidebar = () => {
   const handleGroupSelect = async (groupId, groupName) => {
   try {
     setIsLoading(true);
+    
+    // FIRST update the group selection state
+    useChatStore.getState().setSelectedGroup({ _id: groupId, name: groupName });
+    
+    // THEN update UI state
     setShowGroupMembersView(true);
-    setSelectedGroupId(groupId);
-    setSelectedGroup(groupName);
     setCurrentGroupId(groupId);
     setCurrentGroupName(groupName);
-    //setCurGroupId(groupId);
-    setSelectedUser(null);
-    const res = await axiosInstance.get(`/group/groupSize/${groupId}`);
-    const groupSize = res.data.size;
-    setGroupSize(groupSize);
-
-    // Fetch members and admins in parallel
-    const [membersRes, adminsRes] = await Promise.all([
+    
+    // Fetch additional group data
+    const [sizeRes, membersRes, adminsRes] = await Promise.all([
+      axiosInstance.get(`/group/groupSize/${groupId}`),
       axiosInstance.get(`/group/members/${groupId}`),
-      axiosInstance.get(`/group/admins/${groupId}`), // New endpoint (see Step 2)
+      axiosInstance.get(`/group/admins/${groupId}`),
     ]);
 
-    // Mark admins in the displayed items
+    setGroupSize(sizeRes.data.size);
+    
     const adminIds = new Set(adminsRes.data.admins.map(admin => admin._id.toString()));
     setDisplayedItems(
       membersRes.data.members.map(member => ({
         ...member,
         isOnline: onlineUsers.includes(member._id),
-        isAdmin: adminIds.has(member._id.toString()), // Add admin flag
+        isAdmin: adminIds.has(member._id.toString()),
       }))
     );
   } catch (error) {
-    toast.error("Failed to fetch group data",error);
+    toast.error("Failed to fetch group data");
+    console.error(error);
   } finally {
     setIsLoading(false);
   }
@@ -253,11 +254,7 @@ const Sidebar = () => {
               <span className="font-medium hidden lg:block">New Group</span>
             </button>
           </div>
-          {showGroupMembersView && ( <span className="flex items-center gap-2">
-  <h2 className="ml-2.5">{currentGroupName}</h2>
-  <h2 className="text-sm">{groupSize} {groupSize>1 ? "members" : "member"}</h2>
-</span>)}
-         
+ 
           
           {!showGroupMembersView && (
             <div className="mt-3 hidden lg:flex items-center gap-2">
@@ -334,7 +331,7 @@ const Sidebar = () => {
           handleMakeAdmin(item._id,currentGroupId);
         }}
         className="text-green-500 hover:text-green-700 transition-colors"
-        title="Remove from group"
+        title="Promote to admin"
       >
         <Plus className="w-5 h-5" />
       </button>
