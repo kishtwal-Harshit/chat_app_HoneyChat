@@ -117,7 +117,6 @@ export const useChatStore = create((set, get) => ({
         groupMessages: res.data?.messages || [],
         senderName: res.data?.senderName || null,
         isGroupMessagesLoading: false,
-
       });
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to fetch group messages");

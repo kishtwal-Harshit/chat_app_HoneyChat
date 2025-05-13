@@ -107,7 +107,7 @@ const Sidebar = () => {
       setIsLoading(false);
     }
   };*/
-  const handleGroupSelect = async (groupId, groupName) => {
+  /*const handleGroupSelect = async (groupId, groupName) => {
   try {
     setIsLoading(true);
     
@@ -142,7 +142,44 @@ const Sidebar = () => {
   } finally {
     setIsLoading(false);
   }
-};
+};*/
+   const handleGroupSelect = async (groupId, groupName) => {
+    try {
+      setIsLoading(true);
+      
+      // FIRST update the group selection state
+      useChatStore.getState().setSelectedGroup({ _id: groupId, name: groupName });
+      
+      // THEN update UI state
+      setShowGroupMembersView(true);
+      setCurrentGroupId(groupId);
+      setCurrentGroupName(groupName);
+      
+      // Fetch additional group data
+      const [sizeRes, membersRes, adminsRes] = await Promise.all([
+        axiosInstance.get(`/group/groupSize/${groupId}`),
+        axiosInstance.get(`/group/members/${groupId}`),
+        axiosInstance.get(`/group/admins/${groupId}`),
+      ]);
+
+      setGroupSize(sizeRes.data.size);
+      
+      const adminIds = new Set(adminsRes.data.admins.map(admin => admin._id.toString()));
+      setDisplayedItems(
+        membersRes.data.members.map(member => ({
+          ...member,
+          isOnline: onlineUsers.includes(member._id),
+          isAdmin: adminIds.has(member._id.toString()),
+        }))
+      );
+    } catch (error) {
+      toast.error("Failed to fetch group data");
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
 
   // Create new group
   const handleCreateGroup = async () => {
@@ -169,7 +206,7 @@ const Sidebar = () => {
     try {
       await axiosInstance.post(`/group/leaveGroup/${groupId}`);
       toast.success("Left group successfully");
-      fetchGroups();
+      await fetchGroups(); // Refresh the groups list
       handleContactsClick(); // Reset to contacts view
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to leave group");
@@ -189,8 +226,8 @@ const Sidebar = () => {
       toast.success("Member added!");
       setNewMemberUsername("");
       setShowAddMemberModal(false);
-      // Refresh the members list
-      handleGroupSelect(selectedGroupId, displayTitle);
+      await handleGroupSelect(currentGroupId, currentGroupName);
+      await fetchGroups(); 
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to add member");
     }
