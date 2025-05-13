@@ -24,7 +24,9 @@ export const useChatStore = create((set, get) => ({
   resetChatState: () => set({
     selectedUser: null,
     selectedGroup: null,
-    selectedGroupId: null
+    selectedGroupId: null,
+    messages: [],
+    groupMessages: []
   }),
 
   // 1-to-1 Chat Methods
@@ -107,49 +109,63 @@ export const useChatStore = create((set, get) => ({
   },
 
   getGroupMessages: async (groupId) => {
-    set({ isGroupMessagesLoading: true });
+    set({ isGroupMessagesLoading: true, selectedGroupId: groupId });
     try {
-      const res = await axiosInstance.get(`/group/messages/${groupId}`);
-      set({ groupMessages: res.data?.messages || [] });
+      const res = await axiosInstance.get(`/group/fetchMessages/${groupId}`);
+      set({ 
+        groupMessages: res.data?.messages || [],
+        isGroupMessagesLoading: false
+      });
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to fetch group messages");
-    } finally {
       set({ isGroupMessagesLoading: false });
     }
   },
-
-  /*sendGroupMessage: async (messageData) => {
-    const { selectedGroupId, groupMessages } = get();
-    try {
-      const res = await axiosInstance.post(`/group/send/${selectedGroupId}`, messageData);
-      set({ groupMessages: [...groupMessages, res.data] });
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to send group message");
-    }
-  },*/
-  sendGroupMessage: async (messageData) => {
+  
+sendGroupMessage: async (messageData) => {
   const { selectedGroupId, groupMessages } = get();
+  const { authUser } = useAuthStore.getState();
   const socket = useAuthStore.getState().socket;
 
-  try {
-    const res = await axiosInstance.post(`/group/send/${selectedGroupId}`, messageData);
+  // Create optimistic message
+  const tempMessage = {
+    tempId: Date.now().toString(),
+    senderId: authUser._id,
+    text: messageData.text,
+    image: messageData.image || null,
+    createdAt: new Date(),
+    isOptimistic: true
+  };
 
+  // Add optimistic message to UI immediately
+  set({ groupMessages: [...groupMessages, tempMessage] });
+
+  try {
+    // Send to server
+    const res = await axiosInstance.post(`/group/send/${selectedGroupId}`, messageData);
     const newMessage = res.data;
 
-    // 1. Update local state
-    set({ groupMessages: [...groupMessages, newMessage] });
+    // Replace optimistic message with real message
+    set({
+      groupMessages: groupMessages.map(msg => 
+        msg.tempId === tempMessage.tempId ? newMessage : msg
+      )
+    });
 
-    // 2. Emit to socket
+    // Notify server to broadcast to other members
     socket.emit("sendGroupMessage", {
       groupId: selectedGroupId,
       message: newMessage
     });
 
   } catch (error) {
+    // Remove optimistic message if send fails
+    set({
+      groupMessages: groupMessages.filter(msg => msg.tempId !== tempMessage.tempId)
+    });
     toast.error(error.response?.data?.message || "Failed to send group message");
   }
 },
-
 
   getGroupMembers: async (groupId) => {
     try {
@@ -160,39 +176,42 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-  /*subscribeToGroupMessages: (groupId) => {
-    const socket = useAuthStore.getState().socket;
-    socket.join(groupId);
-
-    socket.on("newGroupMessage", (newMessage) => {
-      const { selectedGroupId } = get();
-      if (newMessage.groupId !== selectedGroupId) return;
-
-      set({
-        groupMessages: [...get().groupMessages, newMessage],
-      });
-    });
-  },*/
   subscribeToGroupMessages: (groupId) => {
   const socket = useAuthStore.getState().socket;
+  
+  if (!socket) {
+    console.error("Socket not available");
+    return;
+  }
 
-  // Emit a request to the server to join the group
-  socket.emit("joinGroup", groupId); // Server should handle this
-
-  socket.on("newGroupMessage", (newMessage) => {
+  // Join the group room
+  socket.emit("joinGroup", groupId);
+  
+  // Listen for new messages
+  socket.on("newGroupMessage", (data) => {
     const { selectedGroupId, groupMessages } = get();
-    if (newMessage.groupId !== selectedGroupId) return;
-
-    set({
-      groupMessages: [...groupMessages, newMessage],
-    });
+    
+    // Only add if it's for the current group
+    if (data.groupId === selectedGroupId) {
+      // Check if message already exists (prevent duplicates)
+      const messageExists = groupMessages.some(
+        msg => msg._id?.toString() === data.message._id?.toString()
+      );
+      
+      if (!messageExists) {
+        set({ groupMessages: [...groupMessages, data.message] });
+      }
+    }
   });
 },
 
-  unsubscribeFromGroupMessages: () => {
-    const socket = useAuthStore.getState().socket;
+unsubscribeFromGroupMessages: () => {
+  const socket = useAuthStore.getState().socket;
+  if (socket) {
     socket.off("newGroupMessage");
-  },
+    socket.emit("leaveAllGroups");
+  }
+},
 
   createGroup: async (groupName) => {
     try {
@@ -223,7 +242,8 @@ export const useChatStore = create((set, get) => ({
       set({
         groups: get().groups.filter(group => group._id !== groupId),
         selectedGroup: null,
-        selectedGroupId: null
+        selectedGroupId: null,
+        groupMessages: []
       });
       toast.success(res.data?.message || "Left group successfully");
     } catch (error) {
@@ -234,21 +254,27 @@ export const useChatStore = create((set, get) => ({
   setSelectedUser: (selectedUser) => set({ 
     selectedUser,
     selectedGroup: null,
-    selectedGroupId: null 
+    selectedGroupId: null,
+    groupMessages: []
   }),
 
- setSelectedGroupId: (groupId) => set({ 
-  selectedGroupId: groupId,
-  selectedUser: null,  // Clear user selection
-  messages: []        // Clear 1:1 messages
-}),
+  setSelectedGroupId: (groupId) => set({ 
+    selectedGroupId: groupId,
+    selectedUser: null,
+    messages: []
+  }),
 
-setSelectedGroup: (group) => set({ 
-  selectedGroup: group?.name || null,
-  selectedGroupId: group?._id || null,
-  selectedUser: null,
-  messages: []
-}),
+  setSelectedGroup: (group) => set({ 
+    selectedGroup: group?.name || null,
+    selectedGroupId: group?._id || null,
+    selectedUser: null,
+    messages: []
+  }),
 
-
+  // Add this method to manually add a message (for testing)
+  addTestMessage: (message) => {
+    set(state => ({
+      groupMessages: [...state.groupMessages, message]
+    }));
+  }
 }));

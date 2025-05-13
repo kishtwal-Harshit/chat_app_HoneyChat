@@ -3,6 +3,8 @@ import User from "../models/user.model.js";
 import bcrypt from "bcryptjs";
 import cloudinary from "../lib/cloudinary.js";
 import Group from "../models/group.model.js";
+import Message from "../models/message.model.js";
+import { getReceiverSocketId, io } from "../lib/socket.js";
 
 export const createGroup = async (req,res)=>{
 
@@ -276,4 +278,79 @@ export const groupSize = async (req,res)=>{
     } catch(error){
         return res.status(500).json({error : "internal server error in fetching group size"});
     }
+};
+
+export const sendToGroup = async (req, res) => {
+  try {
+    const user = req.user?._id;
+    const { text, image } = req.body;
+    const { id: group_id } = req.params;
+
+    // Handle image upload if provided
+    let imageUrl = null;
+    if (image) {
+      try {
+        const uploadResponse = await cloudinary.uploader.upload(image);
+        imageUrl = uploadResponse.secure_url;
+      } catch (uploadError) {
+        return res.status(400).json({ error: 'Error uploading image' });
+      }
+    }
+
+    // Create new message
+    const message = new Message({
+      senderId: user,
+      text,
+      image: imageUrl,
+      timestamp: new Date(),
+    });
+
+    // Save the message
+    await message.save();
+
+    // Find the group and add the message to it
+    const group = await Group.findByIdAndUpdate(
+      group_id,
+      { $push: { messages: message } },
+      { new: true }
+    ).populate('members', '_id');
+
+    if (!group) {
+      return res.status(400).json({ error: 'Group not found or error updating group' });
+    }
+
+    // Emit the message to all members of the group including sender
+    io.to(group_id).emit('newGroupMessage', {
+      groupId: group_id,
+      message,
+    });
+
+    // Return success response
+    return res.status(200).json({
+      message: 'Message successfully sent to group',
+      data: message,
+    });
+  } catch (error) {
+    console.error('Error in sendToGroup controller:', error.message);
+    return res.status(500).json({ error: 'Internal server error in sending message to group' });
+  }
+};
+
+export const getGroupMessages = async (req, res) => {
+  try {
+    const user = req.user?._id;
+    const { id: group_id } = req.params;
+
+    const group = await Group.findById(group_id)
+      .select("messages")
+      .populate("messages"); 
+
+    if (!group || group.messages.length === 0) {
+      return res.status(200).json({ message: "There are no messages currently in this group" });
+    }
+
+    return res.status(200).json({ messages: group.messages });
+  } catch (error) {
+    return res.status(500).json({ error: "Internal server error in fetching group messages" });
+  }
 };

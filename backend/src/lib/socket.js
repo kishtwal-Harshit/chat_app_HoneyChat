@@ -8,38 +8,68 @@ const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
     origin: ["http://localhost:5173"],
+    methods: ["GET", "POST"]
   },
 });
+
+// Store online users and their socket IDs
+const userSocketMap = {}; // {userId: socketId}
+
+// Store group rooms and their members
+const groupRooms = {}; // {groupId: [socketId1, socketId2]}
 
 export function getReceiverSocketId(userId) {
   return userSocketMap[userId];
 }
 
-// used to store online users
-const userSocketMap = {}; // {userId: socketId}
-
 io.on("connection", (socket) => {
   console.log("A user connected", socket.id);
 
   const userId = socket.handshake.query.userId;
-  if (userId) userSocketMap[userId] = socket.id;
+  if (userId) {
+    userSocketMap[userId] = socket.id;
+    console.log(`User ${userId} connected with socket ${socket.id}`);
+  }
 
-  // io.emit() is used to send events to all the connected clients
+  // Send online users list to all clients
   io.emit("getOnlineUsers", Object.keys(userSocketMap));
 
+  // Handle group joining
+  socket.on("joinGroup", (groupId) => {
+    socket.join(groupId);
+    if (!groupRooms[groupId]) {
+      groupRooms[groupId] = [];
+    }
+    groupRooms[groupId].push(socket.id);
+    console.log(`User ${userId} joined group ${groupId}`);
+  });
+
+  // Handle group message broadcasting
+  socket.on("sendGroupMessage", async ({ groupId, message }) => {
+    try {
+      // Broadcast to all group members including sender
+      io.to(groupId).emit("newGroupMessage", {
+        groupId,
+        message
+      });
+      console.log(`Message broadcast to group ${groupId}`);
+    } catch (error) {
+      console.error("Error broadcasting group message:", error);
+    }
+  });
+
+  // Handle disconnection
   socket.on("disconnect", () => {
     console.log("A user disconnected", socket.id);
-    delete userSocketMap[userId];
-    io.emit("getOnlineUsers", Object.keys(userSocketMap));
-    
+    if (userId) {
+      delete userSocketMap[userId];
+      // Remove from all group rooms
+      Object.keys(groupRooms).forEach(groupId => {
+        groupRooms[groupId] = groupRooms[groupId].filter(id => id !== socket.id);
+      });
+      io.emit("getOnlineUsers", Object.keys(userSocketMap));
+    }
   });
-  socket.on('sendGroupMessage', ({ groupId, message }) => {
-  // Save to DB
-  io.to(groupId).emit('newGroupMessage', message);
-});
-  socket.on("joinGroup", (groupId) => {
-  socket.join(groupId);
 });
 
-});
 export { io, app, server };

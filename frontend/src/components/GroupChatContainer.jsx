@@ -1,17 +1,18 @@
 import { useChatStore } from "../store/useChatStore";
 import { useEffect, useRef, useState } from "react";
-import GroupChatHeader from "./GroupChatHeader"; // Recommend separate header component
-import GroupMessageInput from "./GroupMessageInput"; // Recommend separate input component
+import GroupChatHeader from "./GroupChatHeader";
+import GroupMessageInput from "./GroupMessageInput";
 import MessageSkeleton from "./skeletons/MessageSkeleton";
 import { useAuthStore } from "../store/useAuthStore";
 import { formatMessageTime } from "../lib/utils";
-import {axiosInstance} from "../lib/axios"; // Import axiosInstance to make API calls
+import { axiosInstance } from "../lib/axios";
 
 const GroupChatContainer = () => {
   const {
     groupMessages,
+    setGroupMessages, // Add this to update group messages in the store
     getGroupMessages,
-    isGroupMessagesLoading, // Changed to match store convention
+    isGroupMessagesLoading,
     selectedGroup,
     selectedGroupId,
     groupMembers,
@@ -20,7 +21,7 @@ const GroupChatContainer = () => {
   } = useChatStore();
 
   const { authUser } = useAuthStore();
-  const [groupMembersCount, setGroupMembersCount] = useState(0); // State to hold member count
+  const [groupMembersCount, setGroupMembersCount] = useState(0);
   const messagesEndRef = useRef(null);
 
   // Fetch messages and setup real-time updates
@@ -28,13 +29,16 @@ const GroupChatContainer = () => {
     if (!selectedGroupId) return;
 
     const loadMessages = async () => {
+      
       await getGroupMessages(selectedGroupId);
-      subscribeToGroupMessages(selectedGroupId);
+      subscribeToGroupMessages(selectedGroupId, (newMessage) => {
+        setGroupMessages((prevMessages) => [...prevMessages, newMessage]); // Update messages when new ones arrive
+      });
 
       // Fetch the number of group members
       try {
         const response = await axiosInstance.get(`/group/groupSize/${selectedGroupId}`);
-        setGroupMembersCount(response.data.size); // Assuming response contains 'count'
+        setGroupMembersCount(response.data.size);
       } catch (error) {
         console.error("Error fetching group size:", error);
       }
@@ -49,7 +53,8 @@ const GroupChatContainer = () => {
     selectedGroupId,
     getGroupMessages,
     subscribeToGroupMessages,
-    unsubscribeFromGroupMessages
+    unsubscribeFromGroupMessages,
+    setGroupMessages
   ]);
 
   // Auto-scroll to bottom when messages change
@@ -64,7 +69,7 @@ const GroupChatContainer = () => {
         <div className="flex-1 overflow-y-auto">
           <MessageSkeleton />
         </div>
-        <GroupMessageInput />
+        <GroupMessageInput selectedGroupId={selectedGroupId} />
       </div>
     );
   }
@@ -73,7 +78,7 @@ const GroupChatContainer = () => {
     <div className="flex-1 flex flex-col border-l border-base-300">
       <GroupChatHeader 
         groupName={selectedGroup} 
-        memberCount={groupMembersCount} // Use the member count here
+        memberCount={groupMembersCount}
       />
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {groupMessages?.length > 0 ? (
@@ -91,7 +96,7 @@ const GroupChatContainer = () => {
                       {sender.fullName || sender.username}
                     </div>
                   )}
-                  
+                
                   {message.image && (
                     <img
                       src={message.image}
@@ -117,7 +122,7 @@ const GroupChatContainer = () => {
         <div ref={messagesEndRef} />
       </div>
 
-      <GroupMessageInput groupId={selectedGroupId} />
+      <GroupMessageInput selectedGroupId={selectedGroupId} />
     </div>
   );
 };

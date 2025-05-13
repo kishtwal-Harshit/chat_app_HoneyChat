@@ -18,6 +18,11 @@ const groupSchema = new mongoose.Schema(
             default : [],
             required : true,
         }],
+        messages : [{
+            type : mongoose.Schema.Types.ObjectId,
+            ref : "Message",
+            default : [],
+        }],
     },
     {timestamps : true}
 );
