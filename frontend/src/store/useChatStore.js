@@ -12,6 +12,7 @@ export const useChatStore = create((set, get) => ({
   isMessagesLoading: false,
 
   // Group Chat State
+  senderName : null,
   groupMessages: [],
   groups: [],
   groupMembers: [],
@@ -114,7 +115,9 @@ export const useChatStore = create((set, get) => ({
       const res = await axiosInstance.get(`/group/fetchMessages/${groupId}`);
       set({ 
         groupMessages: res.data?.messages || [],
-        isGroupMessagesLoading: false
+        senderName: res.data?.senderName || null,
+        isGroupMessagesLoading: false,
+
       });
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to fetch group messages");

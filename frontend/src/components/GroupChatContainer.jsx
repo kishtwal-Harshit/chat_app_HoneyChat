@@ -9,13 +9,14 @@ import { axiosInstance } from "../lib/axios";
 
 const GroupChatContainer = () => {
   const {
+    senderName,
+    setSenderName,
     groupMessages,
     setGroupMessages, // Add this to update group messages in the store
     getGroupMessages,
     isGroupMessagesLoading,
     selectedGroup,
     selectedGroupId,
-    groupMembers,
     subscribeToGroupMessages,
     unsubscribeFromGroupMessages
   } = useChatStore();
@@ -23,7 +24,7 @@ const GroupChatContainer = () => {
   const { authUser } = useAuthStore();
   const [groupMembersCount, setGroupMembersCount] = useState(0);
   const messagesEndRef = useRef(null);
-
+ 
   // Fetch messages and setup real-time updates
   useEffect(() => {
     if (!selectedGroupId) return;
@@ -33,6 +34,8 @@ const GroupChatContainer = () => {
       await getGroupMessages(selectedGroupId);
       subscribeToGroupMessages(selectedGroupId, (newMessage) => {
         setGroupMessages((prevMessages) => [...prevMessages, newMessage]); // Update messages when new ones arrive
+        setSenderName(senderName);
+        console.log("check!!!");
       });
 
       // Fetch the number of group members
@@ -54,7 +57,9 @@ const GroupChatContainer = () => {
     getGroupMessages,
     subscribeToGroupMessages,
     unsubscribeFromGroupMessages,
-    setGroupMessages
+    setGroupMessages,
+    senderName,
+    setSenderName,
   ]);
 
   // Auto-scroll to bottom when messages change
@@ -83,7 +88,7 @@ const GroupChatContainer = () => {
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {groupMessages?.length > 0 ? (
           groupMessages.map((message) => {
-            const sender = groupMembers?.find(m => m._id === message.senderId) || {};
+
             
             return (
               <div
@@ -91,10 +96,17 @@ const GroupChatContainer = () => {
                 className={`flex ${message.senderId === authUser._id ? 'justify-end' : 'justify-start'}`}
               >
                 <div className={`max-w-xs md:max-w-md lg:max-w-lg xl:max-w-xl rounded-lg p-3 ${message.senderId === authUser._id ? 'bg-primary text-primary-content' : 'bg-base-200'}`}>
-                  {message.senderId !== authUser._id && (
-                    <div className="font-semibold text-sm mb-1">
-                      {sender.fullName || sender.username}
-                    </div>
+                  { (
+                   <div className={`font-semibold text-sm mb-1 ${
+                message.senderId === authUser._id
+                  ? 'text-primary-content/90' 
+                  : 'text-secondary dark:text-secondary-focus'
+              }`}>
+                {message.senderId !== authUser._id &&  <span className="text-gray-700 dark:text-gray-300">{message.senderName}</span>}
+                {message.senderId === authUser._id && (
+                  <span className="ml-1 text-primary-content/70">you</span>
+                )}
+              </div>
                   )}
                 
                   {message.image && (
@@ -104,7 +116,7 @@ const GroupChatContainer = () => {
                       className="rounded-md mb-2 max-h-60 object-cover"
                     />
                   )}
-                  
+                
                   {message.text && <p className="whitespace-pre-wrap">{message.text}</p>}
                   
                   <div className="text-xs opacity-70 mt-1 text-right">

@@ -296,13 +296,14 @@ export const sendToGroup = async (req, res) => {
         return res.status(400).json({ error: 'Error uploading image' });
       }
     }
-
+    const name = await User.findById(user).select("fullName");
     // Create new message
     const message = new Message({
       senderId: user,
       text,
       image: imageUrl,
       timestamp: new Date(),
+      senderName: name.fullName,
     });
 
     // Save the message

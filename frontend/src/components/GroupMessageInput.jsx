@@ -1,8 +1,7 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { BsSend } from "react-icons/bs";
 import { FaPaperclip } from "react-icons/fa";
 import { axiosInstance } from "../lib/axios";
-import { useRef } from "react";
 import toast from "react-hot-toast";
 import { X } from "lucide-react";
 
@@ -20,7 +19,7 @@ const GroupMessageInput = ({ selectedGroupId }) => {
 
     const reader = new FileReader();
     reader.onloadend = () => {
-      setImagePreview(reader.result);  // Store base64 image preview
+      setImagePreview(reader.result);
     };
     reader.readAsDataURL(file);
   };
@@ -32,41 +31,36 @@ const GroupMessageInput = ({ selectedGroupId }) => {
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!text.trim() && !imagePreview) return;  // Prevent empty messages
+    if (!text.trim() && !imagePreview) return;
 
     const messageData = { text: text.trim() };
-
     if (imagePreview) {
-      messageData.image = imagePreview;  // Send base64 image
+      messageData.image = imagePreview;
     }
 
     try {
-        await axiosInstance.post(`/group/send/${selectedGroupId}`, messageData, {
+      await axiosInstance.post(`/group/send/${selectedGroupId}`, messageData, {
         headers: {
           "Content-Type": "application/json",
         },
       });
-      //console.log(res);
-      //toast.success("group message saved successfully");
-      setText("");  // Reset text
-      setImagePreview(null);  // Reset image preview
+      setText("");
+      setImagePreview(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
-      //const res1 = await axiosInstance.get(`/group/fetchMessages/${selectedGroupId}`);
-      //console.log(res1.data.messages);
     } catch (error) {
       console.error("Failed to send message:", error);
     }
   };
 
   return (
-    <div className="p-4 border-t border-base-300 bg-base-100 flex items-center gap-2">
+    <div className="p-4 border-t border-base-300 bg-base-100 flex flex-col gap-2">
       {imagePreview && (
-        <div className="mb-3 flex items-center gap-2">
+        <div className="flex items-center gap-2">
           <div className="relative">
             <img
               src={imagePreview}
               alt="Preview"
-              className="w-10 h-14 object-cover rounded-lg border border-zinc-200"
+              className="w-12 h-16 object-cover rounded-lg border border-zinc-200"
             />
             <button
               onClick={removeImage}
@@ -79,23 +73,23 @@ const GroupMessageInput = ({ selectedGroupId }) => {
         </div>
       )}
 
-      <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-          <div className="flex-1 flex gap-2">
-       <input
-  type="text"
-className="w-full input input-bordered rounded-lg input-sm sm:input-md"
-  placeholder="Type a message"
-  value={text}
-  width={1000}
-  onChange={(e) => setText(e.target.value)}
-  onKeyDown={(e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      handleSendMessage(e);
-    }
-  }}
-/>
-</div>
+      <form
+        onSubmit={handleSendMessage}
+        className="flex items-center gap-2 w-full"
+      >
+        <input
+          type="text"
+          className="flex-grow input input-bordered rounded-lg input-sm sm:input-md text-gray-700 dark:text-gray-300"
+          placeholder="Type a message"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              handleSendMessage(e);
+            }
+          }}
+        />
 
         <label className="cursor-pointer">
           <FaPaperclip size={18} className="text-base-content/70" />
