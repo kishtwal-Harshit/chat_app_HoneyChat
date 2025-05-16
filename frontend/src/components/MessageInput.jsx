@@ -1,11 +1,13 @@
 import { useRef, useState } from "react";
 import { useChatStore } from "../store/useChatStore";
-import { Sparkles, Image, Send, X, Ban } from "lucide-react";
+import { Sparkles, Image, Send, X, Ban, FileText } from "lucide-react";
 import toast from "react-hot-toast";
 
 const MessageInput = () => {
   const [text, setText] = useState("");
   const [imagePreview, setImagePreview] = useState(null);
+  const [filePreview, setFilePreview] = useState(null);
+  const imageInputRef = useRef(null);
   const fileInputRef = useRef(null);
   const { sendMessage, banUser } = useChatStore();
 
@@ -13,7 +15,6 @@ const MessageInput = () => {
   const [dialogText, setDialogText] = useState("");
   const [aiResponse, setAiResponse] = useState("");
   const [loading, setLoading] = useState(false);
- 
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -29,27 +30,56 @@ const MessageInput = () => {
     reader.readAsDataURL(file);
   };
 
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setFilePreview({
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      file: file
+    });
+  };
+
   const removeImage = () => {
     setImagePreview(null);
+    if (imageInputRef.current) imageInputRef.current.value = "";
+  };
+
+  const removeFile = () => {
+    setFilePreview(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!text.trim() && !imagePreview) return;
+    if (!text.trim() && !imagePreview && !filePreview) return;
 
     try {
-      await sendMessage({
-        text: text.trim(),
-        image: imagePreview,
-        actualImage: null,
-      });
+      const formData = new FormData();
+      formData.append("text", text.trim());
+      
+      if (imagePreview) {
+        // For base64 image
+        formData.append("image", imagePreview);
+      }
+      
+      if (filePreview) {
+        // For actual file
+        formData.append("file", filePreview.file);
+      }
+
+      await sendMessage(formData);
 
       setText("");
       setImagePreview(null);
+      setFilePreview(null);
+      if (imageInputRef.current) imageInputRef.current.value = "";
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (error) {
       console.error("Failed to send message:", error);
+      toast.error("Failed to send message");
     }
   };
 
@@ -63,7 +93,10 @@ const MessageInput = () => {
     setAiResponse("");
   };
 
-  let url = import.meta.env.MODE === "development" ? "http://localhost:5001/api/messages/generate" : "https://chat-app-honeychat.onrender.com/api/messages/generate";
+  let url = import.meta.env.MODE === "development" 
+    ? "http://localhost:5001/api/messages/generate" 
+    : "https://chat-app-honeychat.onrender.com/api/messages/generate";
+
   const generateAiResponse = async (prompt) => {
     setLoading(true);
     try {
@@ -102,34 +135,62 @@ const MessageInput = () => {
   const handleBan = async () => {
     try {
       await banUser();
-      
     } catch (error) {
       console.error("Failed to ban/unban the user:", error);
-     
     }
+  };
+
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
   };
 
   return (
     <div className="p-4 w-full">
-      {imagePreview && (
-        <div className="mb-3 flex items-center gap-2">
-          <div className="relative">
-            <img
-              src={imagePreview}
-              alt="Preview"
-              className="w-20 h-20 object-cover rounded-lg border border-zinc-700"
-            />
+      {/* Preview Section */}
+        {imagePreview && (
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <img
+                src={imagePreview}
+                alt="Preview"
+                className="w-20 h-20 object-cover rounded-lg border border-zinc-700"
+              />
+              <button
+                onClick={removeImage}
+                className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-base-300 flex items-center justify-center"
+                type="button"
+              >
+                <X className="size-3" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {filePreview && (
+          <div className="flex items-center gap-2 p-2 bg-base-200 rounded-lg">
+            <FileText className="text-blue-500" size={20} />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">{filePreview.name}</p>
+              <p className="text-xs text-gray-500">
+                {formatFileSize(filePreview.size)}
+              </p>
+            </div>
             <button
-              onClick={removeImage}
-              className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-base-300 flex items-center justify-center"
+              onClick={removeFile}
+              className="text-red-500 hover:text-red-700"
               type="button"
             >
-              <X className="size-3" />
+              <X className="size-4" />
             </button>
           </div>
-        </div>
-      )}
+        )}
+   
 
+      {/* Input Form */}
       <form onSubmit={handleSendMessage} className="flex items-center gap-2">
         <div className="flex-1 flex gap-2">
           <input
@@ -139,18 +200,28 @@ const MessageInput = () => {
             value={text}
             onChange={(e) => setText(e.target.value)}
           />
+
+          {/* Hidden file inputs */}
           <input
             type="file"
             accept="image/*"
             className="hidden"
-            ref={fileInputRef}
+            ref={imageInputRef}
             onChange={handleImageChange}
           />
+          <input
+            type="file"
+            className="hidden"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+          />
 
+          {/* Action Buttons */}
           <button
             type="button"
-            className={`hidden sm:flex btn btn-circle ${imagePreview ? "text-emerald-500" : "text-zinc-400"}`}
-            onClick={() => fileInputRef.current?.click()}
+            className={`hidden sm:flex btn btn-circle px-4 py-2 font-bold ${imagePreview ? "text-emerald-500" : "text-zinc-400"}`}
+            onClick={() => imageInputRef.current?.click()}
+            title="Attach image"
           >
             <Image size={20} />
           </button>
@@ -158,15 +229,26 @@ const MessageInput = () => {
           <button
             type="button"
             className={`hidden sm:flex btn btn-circle px-4 py-2 font-bold ${imagePreview ? "text-emerald-500" : "text-zinc-400"}`}
-            onClick={openDialogBox}
+            onClick={() => fileInputRef.current?.click()}
+            title="Attach file"
           >
-            <Sparkles size={30} />
+            <FileText size={20} />
           </button>
 
           <button
             type="button"
-            className={`hidden sm:flex btn btn-circle "text-zinc-400"}`}
+            className={`hidden sm:flex btn btn-circle px-4 py-2 font-bold ${imagePreview ? "text-emerald-500" : "text-zinc-400"}`}
+            onClick={openDialogBox}
+            title="AI Assistant"
+          >
+            <Sparkles size={20} />
+          </button>
+
+          <button
+            type="button"
+            className={`hidden sm:flex btn btn-circle px-4 py-2 font-bold ${imagePreview ? "text-emerald-500" : "text-zinc-400"}`}
             onClick={handleBan}
+            title="Ban user"
           >
             <Ban size={20} />
           </button>
@@ -174,15 +256,17 @@ const MessageInput = () => {
 
         <button
           type="submit"
-          className="btn btn-sm btn-circle"
-          disabled={!text.trim() && !imagePreview}
+          className={`hidden sm:flex btn btn-circle px-4 py-2 font-bold ${imagePreview ? "text-emerald-500" : "text-zinc-400"}`}
+          disabled={!text.trim() && !imagePreview && !filePreview}
+          title="Send message"
         >
-          <Send size={22} />
+          <Send size={30} />
         </button>
       </form>
 
+      {/* AI Dialog */}
       {isDialogOpen && (
-        <div className="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex justify-center items-center">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-lg w-1/3">
             <h2 className="text-2xl mb-4">Enter your prompt</h2>
             <textarea

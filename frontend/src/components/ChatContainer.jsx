@@ -1,11 +1,11 @@
 import { useChatStore } from "../store/useChatStore";
 import { useEffect, useRef } from "react";
-
 import ChatHeader from "./ChatHeader";
 import MessageInput from "./MessageInput";
 import MessageSkeleton from "./skeletons/MessageSkeleton";
 import { useAuthStore } from "../store/useAuthStore";
 import { formatMessageTime } from "../lib/utils";
+
 
 const ChatContainer = () => {
   const {
@@ -21,7 +21,6 @@ const ChatContainer = () => {
 
   useEffect(() => {
     getMessages(selectedUser._id);
-
     subscribeToMessages();
 
     return () => unsubscribeFromMessages();
@@ -32,6 +31,40 @@ const ChatContainer = () => {
       messageEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages]);
+
+  const getFileIcon = (fileName) => {
+    const extension = fileName.split('.').pop().toLowerCase();
+    switch(extension) {
+      case 'pdf':
+        return '📕';
+      case 'ppt':
+      case 'pptx':
+        return '📊';
+      case 'doc':
+      case 'docx':
+        return '📄';
+      case 'xls':
+      case 'xlsx':
+        return '📈';
+      default:
+        return '📎';
+    }
+  };
+
+  const handleFileClick = (file) => {
+    if (file.isDocument) {
+      // For documents, trigger download
+      const link = document.createElement('a');
+      link.href = file.url;
+      link.setAttribute('download', file.originalName);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      // For non-documents, open in new tab
+      window.open(file.url, '_blank');
+    }
+  };
 
   if (isMessagesLoading) {
     return (
@@ -54,7 +87,7 @@ const ChatContainer = () => {
             className={`chat ${message.senderId === authUser._id ? "chat-end" : "chat-start"}`}
             ref={messageEndRef}
           >
-            <div className=" chat-image avatar">
+            <div className="chat-image avatar">
               <div className="size-10 rounded-full border">
                 <img
                   src={
@@ -66,20 +99,46 @@ const ChatContainer = () => {
                 />
               </div>
             </div>
-            <div className="chat-header mb-1">
-              <time className="text-xs opacity-50 ml-1">
-                {formatMessageTime(message.createdAt)}
-              </time>
-            </div>
-            <div className="chat-bubble flex flex-col">
+            
+            <div className="chat-bubble flex flex-col space-y-2">
+              {/* Render image if available */}
               {message.image && (
-               <img
+                <img
                   src={message.image}
                   alt="Attachment"
-                  className="rounded-md mb-5 max-h-60 object-cover"
+                  className="rounded-md max-h-60 object-cover"
                 />
               )}
+
+              {/* Render file link if available */}
+              {message.file && message.file.url && (
+                <div 
+                  className="flex items-center gap-2 p-2 bg-base-200 rounded-lg cursor-pointer hover:bg-base-300"
+                  onClick={() => handleFileClick(message.file)}
+                >
+                  <span className="text-lg">{getFileIcon(message.file.originalName)}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">
+                      {message.file.originalName}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {Math.round(message.file.size / 1024)} KB
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Render text message */}
               {message.text && <p>{message.text}</p>}
+              <div className="chat-header mb-1">
+              <div className="flex justify-end">
+  <time className="text-xs opacity-50">
+    {formatMessageTime(message.createdAt)}
+  </time>
+</div>
+
+            </div>
+
             </div>
           </div>
         ))}
@@ -89,4 +148,5 @@ const ChatContainer = () => {
     </div>
   );
 };
+
 export default ChatContainer;
