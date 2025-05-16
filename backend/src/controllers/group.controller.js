@@ -280,62 +280,100 @@ export const groupSize = async (req,res)=>{
     }
 };
 
+import path from 'path';  // make sure to import path at the top if not already
+
 export const sendToGroup = async (req, res) => {
   try {
-    const user = req.user?._id;
-    const { text, image } = req.body;
-    const { id: group_id } = req.params;
+    const user = req.user._id;
+    if (!user) return res.status(401).json({ error: "Unauthorized" });
 
-    // Handle image upload if provided
+    const { text, image } = req.body;
+    const { id: groupId } = req.params;
+
     let imageUrl = null;
     if (image) {
-      try {
-        const uploadResponse = await cloudinary.uploader.upload(image);
-        imageUrl = uploadResponse.secure_url;
-      } catch (uploadError) {
-        return res.status(400).json({ error: 'Error uploading image' });
-      }
+      console.log("Uploading image...");
+      const uploadResponse = await cloudinary.uploader.upload(image);
+      imageUrl = uploadResponse.secure_url;
+      console.log("Image uploaded:", imageUrl);
     }
-    const name = await User.findById(user).select("fullName");
-    // Create new message
+
+    const files = req.files?.file || [];
+    console.log("Files received:", files.length);
+
+    let uploadedFiles = [];
+    if (files.length > 0) {
+      uploadedFiles = await Promise.all(
+        files.map((file) => {
+          const extension = path.extname(file.originalname).toLowerCase().slice(1);
+          const fileNameWithoutExt = path.parse(file.originalname).name;
+          const isDocument = ['pdf', 'ppt', 'pptx', 'doc', 'docx', 'xls', 'xlsx'].includes(extension);
+
+          return new Promise((resolve, reject) => {
+            const uploadOptions = {
+              resource_type: isDocument ? 'raw' : 'auto',
+              public_id: fileNameWithoutExt,
+              use_filename: true,
+              unique_filename: false,
+            };
+
+            const stream = cloudinary.uploader.upload_stream(uploadOptions, (error, result) => {
+              if (error) {
+                console.error("Error uploading file:", error);
+                return reject(error);
+              }
+              const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+              const url = isDocument
+                ? `https://res.cloudinary.com/${cloudName}/raw/upload/fl_attachment:${fileNameWithoutExt}/${result.public_id}.${extension}`
+                : result.secure_url;
+              resolve({
+                url,
+                originalName: file.originalname,
+                mimeType: file.mimetype,
+                size: file.size,
+                isDocument,
+              });
+            });
+
+            stream.end(file.buffer);
+          });
+        })
+      );
+    }
+
+    const userName = await User.findById(user).select('fullName');
+    if (!userName) return res.status(404).json({ error: "User not found" });
+
     const message = new Message({
       senderId: user,
       text,
       image: imageUrl,
+      file: uploadedFiles.length > 0 ? uploadedFiles[0] : null,
       timestamp: new Date(),
-      senderName: name.fullName,
+      senderName: userName.fullName,
     });
 
-    // Save the message
     await message.save();
 
-    // Find the group and add the message to it
     const group = await Group.findByIdAndUpdate(
-      group_id,
-      { $push: { messages: message } },
+      groupId,
+      { $push: { messages: message._id } },
       { new: true }
     ).populate('members', '_id');
 
-    if (!group) {
-      return res.status(400).json({ error: 'Group not found or error updating group' });
-    }
+    if (!group) return res.status(400).json({ error: "Group not found or error updating group" });
 
-    // Emit the message to all members of the group including sender
-    io.to(group_id).emit('newGroupMessage', {
-      groupId: group_id,
-      message,
-    });
+    io.to(groupId).emit('newGroupMessage', { groupId, message });
 
-    // Return success response
-    return res.status(200).json({
-      message: 'Message successfully sent to group',
-      data: message,
-    });
+    res.status(200).json({ message: "Message successfully sent to group", data: message });
   } catch (error) {
-    console.error('Error in sendToGroup controller:', error.message);
-    return res.status(500).json({ error: 'Internal server error in sending message to group' });
+    console.error("Error in sendToGroup controller:", error);
+    res.status(500).json({ error: "Internal server error in sending message to group" });
   }
 };
+
+
+
 
 export const getGroupMessages = async (req, res) => {
   try {

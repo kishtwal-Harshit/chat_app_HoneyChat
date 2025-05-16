@@ -18,6 +18,12 @@ const messageSchema = new mongoose.Schema(
     image: {
       type: String,
     },
+    file: {
+      url: { type: String },          // Link to the stored file
+      originalName: { type: String }, // Original file name (e.g. "notes.pdf")
+      mimeType: { type: String },     // MIME type (e.g. "application/pdf")
+      size: { type: Number },         // Size in bytes (optional)
+    },
     senderName: {
       type: String,
     },

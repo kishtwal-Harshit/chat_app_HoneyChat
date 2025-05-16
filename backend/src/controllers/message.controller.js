@@ -17,6 +17,91 @@ export const getUsersForSidebar = async (req, res) => {
   }
 };
 
+import path from "path"; // at the top if not already imported
+
+export const sendMessage = async (req, res) => {
+  try {
+    const { text, image } = req.body;
+    const { id: receiverId } = req.params;
+    const senderId = req.user._id;
+
+    const receiver = await User.findById(receiverId);
+    const isBlocked = receiver.blockedUsers.some(
+      (id) => id.toString() === senderId.toString()
+    );
+
+    if (isBlocked) {
+      return res
+        .status(400)
+        .json({ message: "You have been blocked! Unable to deliver the message" });
+    }
+
+    let imageUrl;
+    if (image) {
+      const uploadResponse = await cloudinary.uploader.upload(image);
+      imageUrl = uploadResponse.secure_url;
+    }
+
+    const files = req.files?.file || [];
+    const uploadedFiles = await Promise.all(
+  files.map((file) => {
+    const extension = path.extname(file.originalname).toLowerCase().slice(1); // e.g., 'pdf'
+    const fileNameWithoutExt = path.parse(file.originalname).name;
+    const isDocument = ['pdf', 'ppt', 'pptx', 'doc', 'docx', 'xls', 'xlsx'].includes(extension);
+
+    return new Promise((resolve, reject) => {
+      const uploadOptions = {
+        resource_type: isDocument ? 'raw' : 'auto',
+        public_id: fileNameWithoutExt, // This becomes public_id like `resume.pdf`
+        use_filename: true,
+        unique_filename: false,
+      };
+
+      const stream = cloudinary.uploader.upload_stream(uploadOptions, (error, result) => {
+        if (error) return reject(error);
+
+        const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+
+        const url = isDocument
+          ? `https://res.cloudinary.com/${cloudName}/raw/upload/fl_attachment:${fileNameWithoutExt}/${result.public_id}.${extension}`
+          : result.secure_url;
+
+        resolve({
+          url,
+          originalName: file.originalname,
+          mimeType: file.mimetype,
+          size: file.size,
+          isDocument,
+        });
+      });
+
+      stream.end(file.buffer);
+    });
+  })
+);
+
+    const newMessage = new Message({
+      senderId,
+      receiverId,
+      text,
+      image: imageUrl,
+      file: uploadedFiles[0],
+    });
+
+    await newMessage.save();
+
+    const receiverSocketId = getReceiverSocketId(receiverId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("newMessage", newMessage);
+    }
+
+    res.status(201).json(newMessage);
+  } catch (error) {
+    console.log("Error in sendMessage controller: ", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
 export const getMessages = async (req, res) => {
   try {
     const { id: userToChatId } = req.params;
@@ -36,45 +121,6 @@ export const getMessages = async (req, res) => {
   }
 };
 
-export const sendMessage = async (req, res) => {
-  try {
-    const { text, image } = req.body;
-    const { id: receiverId } = req.params;
-    const senderId = req.user._id;
-
-    const receiver = await User.findById(receiverId);
-    const isBlocked = receiver['blockedUsers'].some(id => id.toString() === senderId.toString());
-
-    if(isBlocked) return res.status(400).json({message : "you have been blocked!, unable to deliver the message"});
-
-
-    let imageUrl;
-    if (image) {
-      console.log('image here')
-      const uploadResponse = await cloudinary.uploader.upload(image);
-      imageUrl = uploadResponse.secure_url;
-    }
-
-    const newMessage = new Message({
-      senderId,
-      receiverId,
-      text,
-      image: imageUrl,
-    });
-
-    await newMessage.save();
-
-    const receiverSocketId = getReceiverSocketId(receiverId);
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit("newMessage", newMessage);
-    }
-
-    res.status(201).json(newMessage);
-  } catch (error) {
-    console.log("Error in sendMessage controller: ", error.message);
-    res.status(500).json({ error: "Internal server error" });
-  }
-};
 
 export const deleteMessage = async (req,res)=>{
 
