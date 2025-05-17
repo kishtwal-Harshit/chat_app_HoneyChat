@@ -267,10 +267,10 @@ const MessageInput = () => {
       {/* AI Dialog */}
       {isDialogOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-1/3">
-            <h2 className="text-2xl mb-4">Enter your prompt</h2>
+          <div className="bg-base-100 p-6 rounded-lg shadow-lg w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4">Generate AI Response</h2>
             <textarea
-              className="w-full p-2 border rounded-lg"
+              className="w-full p-2 border rounded-lg bg-base-200 text-base-content"
               value={dialogText}
               onChange={(e) => setDialogText(e.target.value)}
               placeholder="Ask anything..."
@@ -279,33 +279,35 @@ const MessageInput = () => {
             <div className="flex justify-end mt-4 gap-2">
               <button
                 type="button"
-                className="px-4 py-2 bg-gray-300 text-black rounded-lg"
+                className="btn btn-ghost"
                 onClick={closeDialogBox}
               >
                 Close
               </button>
               <button
                 type="button"
-                className="px-4 py-2 bg-emerald-500 text-white rounded-lg"
+                className="btn btn-primary"
                 onClick={handleDialogSubmit}
                 disabled={loading}
               >
-                {loading ? "Loading..." : "Submit"}
+                {loading ? "Generating..." : "Generate"}
               </button>
             </div>
 
-            {aiResponse && (
+           {aiResponse && (
               <div className="mt-4">
-                <h3 className="font-bold text-lg mb-2">AI Response:</h3>
-                <div className="border p-2 rounded-lg max-h-48 overflow-y-auto w-full text-sm whitespace-pre-wrap">
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="font-bold">AI Response:</h3>
+                  <button
+                    onClick={handleCopyResponse}
+                    className="btn btn-xs"
+                  >
+                    Copy
+                  </button>
+                </div>
+                <div className="p-3 bg-base-200 rounded-lg max-h-48 overflow-y-auto text-sm whitespace-pre-wrap">
                   {aiResponse}
                 </div>
-                <button
-                  onClick={handleCopyResponse}
-                  className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-lg"
-                >
-                  Copy Response
-                </button>
               </div>
             )}
           </div>

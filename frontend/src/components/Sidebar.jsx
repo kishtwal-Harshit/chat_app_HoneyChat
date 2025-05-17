@@ -6,6 +6,8 @@ import { Users, X, Plus, MessagesSquare, LogOut, UserX} from "lucide-react";
 import { axiosInstance } from "../lib/axios";
 import toast from "react-hot-toast";
 
+
+
 const Sidebar = () => {
   // State from stores
   const { 
@@ -163,6 +165,7 @@ const Sidebar = () => {
       ]);
 
       setGroupSize(sizeRes.data.size);
+      console.log(sizeRes.data.size);
       
       const adminIds = new Set(adminsRes.data.admins.map(admin => admin._id.toString()));
       setDisplayedItems(
@@ -224,12 +227,14 @@ const Sidebar = () => {
         `/group/add/${selectedGroupId}/${newMemberUsername}`
       );
       toast.success("Member added!");
-      setNewMemberUsername("");
-      setShowAddMemberModal(false);
       await handleGroupSelect(currentGroupId, currentGroupName);
       await fetchGroups(); 
+      setNewMemberUsername("");
+      setShowAddMemberModal(false);
+      
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to add member");
+      
     }
   };
 
