@@ -100,7 +100,12 @@ const ChatContainer = () => {
               </div>
             </div>
             
-            <div className="chat-bubble flex flex-col space-y-2">
+            <div  className={`chat-bubble flex flex-col space-y-2 ${
+                 message.senderId === authUser._id
+                  ? "bg-primary text-primary-content"
+                : "bg-base-200 text-base-content"
+                }`}
+                >
               {/* Render image if available */}
               {message.image && (
                 <img
@@ -118,7 +123,8 @@ const ChatContainer = () => {
                 >
                   <span className="text-lg">{getFileIcon(message.file.originalName)}</span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">
+                    <p 
+                 className={"text-base-content"}>
                       {message.file.originalName}
                     </p>
                     <p className="text-xs text-gray-500">
