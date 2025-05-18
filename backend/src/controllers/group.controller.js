@@ -292,14 +292,14 @@ export const sendToGroup = async (req, res) => {
 
     let imageUrl = null;
     if (image) {
-      console.log("Uploading image...");
+      //console.log("Uploading image...");
       const uploadResponse = await cloudinary.uploader.upload(image);
       imageUrl = uploadResponse.secure_url;
-      console.log("Image uploaded:", imageUrl);
+      //console.log("Image uploaded:", imageUrl);
     }
 
     const files = req.files?.file || [];
-    console.log("Files received:", files.length);
+    //console.log("Files received:", files.length);
 
     let uploadedFiles = [];
     if (files.length > 0) {

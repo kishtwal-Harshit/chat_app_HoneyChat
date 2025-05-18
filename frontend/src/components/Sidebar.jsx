@@ -100,7 +100,7 @@ const Sidebar = () => {
   const [displayedItems, setDisplayedItems] = useState([]);
   const [displayTitle, setDisplayTitle] = useState("Contacts");
   const [showGroupMembersView, setShowGroupMembersView] = useState(false);
-  console.log(currentGroupName,groupSize);
+  groupSize;
   // Fetch initial data
   useEffect(() => {
     getUsers();
@@ -224,7 +224,7 @@ const Sidebar = () => {
       ]);
 
       setGroupSize(sizeRes.data.size);
-      console.log(sizeRes.data.size);
+      //console.log(sizeRes.data.size);
       
       const adminIds = new Set(adminsRes.data.admins.map(admin => admin._id.toString()));
       setDisplayedItems(
@@ -250,8 +250,8 @@ const Sidebar = () => {
         toast.error("Group name cannot be empty");
         return;
       }
-      const res = await axiosInstance.post("/group/createGroup", { name: groupName });
-      console.log(res)
+      await axiosInstance.post("/group/createGroup", { name: groupName });
+      //console.log(res)
       toast.success("Group created!");
       setGroupName("");
       setShowGroupModal(false);
@@ -300,7 +300,7 @@ const Sidebar = () => {
   const handleMakeAdmin = async(id,groupId)=>{
 
     try{
-      console.log(groupId);
+      //console.log(groupId);
       await axiosInstance.post(`/group/makeAdmin/${groupId}/${id}`);
       toast.success("user successfully promoted to admin");
     } catch(error){

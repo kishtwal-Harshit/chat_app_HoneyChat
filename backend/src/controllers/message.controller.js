@@ -23,10 +23,10 @@ export const getFilteredUsersForSidebar = async (req, res) => {
     const loggedInUserId = req.user._id;
     //const filteredUsers = await User.find({ _id: { $ne: loggedInUserId } }).select("-password");
     const {prefix : pre} = req.params;
-    const filteredUsers = await User.find({$and : [{ fullName: { $regex: pre}} , { _id: { $ne: loggedInUserId } }]});
-    const users = filteredUsers.length > 0 ? filteredUsers : [];
+    const filteredUsers = await User.find({$and : [{ fullName: { $regex: pre}} , { _id: { $ne: loggedInUserId } }]}).select("-password");
+    //const users = filteredUsers.length > 0 ? filteredUsers : [];
 
-    res.status(200).json(users);
+    res.status(200).json(filteredUsers);
   } catch (error) {
     console.log("Error in getUsersForSidebar: ", error.message);
     res.status(500).json({ error: "Internal server error" });

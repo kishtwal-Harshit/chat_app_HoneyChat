@@ -6,8 +6,8 @@ import GroupChatContainer from "../components/GroupChatContainer";
 
 const HomePage = () => {
   const { selectedUser, selectedGroupId } = useChatStore();
-  console.log("here",selectedGroupId);
-  console.log("here1",selectedUser);
+  //console.log("here",selectedGroupId);
+  //console.log("here1",selectedUser);
   return (
     <div className="h-screen bg-base-200">
       <div className="flex items-center justify-center pt-20 px-4">
