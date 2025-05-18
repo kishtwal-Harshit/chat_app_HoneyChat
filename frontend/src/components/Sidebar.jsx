@@ -6,6 +6,59 @@ import { Users, X, Plus, MessagesSquare, LogOut, UserX} from "lucide-react";
 import { axiosInstance } from "../lib/axios";
 import toast from "react-hot-toast";
 
+/*class TrieNode{
+  constructor(){
+    this.children = {}; 
+    this.isEndOfWord = false;
+  }
+}
+
+class Trie{
+  constructor(){
+    this.root = new TrieNode();
+  }
+
+  insert(word){
+
+    let cur = this.root;
+    for(const ch of word){
+
+      if(!cur.children[ch]){
+        cur.children[ch] = new TrieNode();
+      }
+      cur = cur.children[ch];
+    }
+
+    cur.isEndOfWord=true;
+  }
+
+  startsWith(prefix) {
+  let node = this.root;
+  for (const ch of prefix) {
+    if (!node.children[ch]) return [];
+    node = node.children[ch];
+  }
+  return this._collectAllWords(node, prefix);
+}
+
+ _collectAllWords(node, prefix) {
+    const words = [];
+
+    const dfs = (currentNode, path) => {
+      if (currentNode.isEndOfWord) {
+        words.push(path);
+      }
+
+      for (const ch in currentNode.children) {
+        dfs(currentNode.children[ch], path + ch);
+      }
+    };
+
+    dfs(node, prefix);
+    return words;
+  }
+
+}*/
 
 
 const Sidebar = () => {
@@ -35,7 +88,11 @@ const Sidebar = () => {
   const [currentGroupId, setCurrentGroupId] = useState(null); 
   const [currentGroupName, setCurrentGroupName] = useState(null); 
   const [groupSize, setGroupSize] = useState(0);
+  const [filteredNames, setFilteredNames] = useState([]);
+  //const [curArr, setCurArr] = useState([]);
+  //const [searchBarClicked, setSearchBarClicked] = useState(0);
   //const [curGroupId, setCurGroupId] = useState("");
+  const [searchBarVal, setSearchBarVal] = useState('');
 
   const { authUser } = useAuthStore();
   const loggedInUserId = authUser?._id;
@@ -153,6 +210,8 @@ const Sidebar = () => {
       useChatStore.getState().setSelectedGroup({ _id: groupId, name: groupName });
       
       // THEN update UI state
+      setSearchBarVal('');
+      setFilteredNames([]);
       setShowGroupMembersView(true);
       setCurrentGroupId(groupId);
       setCurrentGroupName(groupName);
@@ -273,9 +332,43 @@ const Sidebar = () => {
       toast.error(error || "error!");
     }
   }*/
+ /* const displayUsers = async (e)=>{
+
+    try{
+  
+  
+
+    let tmpNames = await axiosInstance.get(`/messages/filteredUsers/${e.target.value}`);
+    //setCurArr(tmpNames.length > 0 ? tmpNames : displayedItems);
+    //console.log("tmpData=",tmpNames);
+    setFilteredNames(tmpNames.data);
+    console.log(filteredNames);
+    setSearchBarVal(e.target.value);
+
+    } catch(error){
+      console.log("error! : ",error);
+    }
+
+  }*/
+ const displayUsers = async (e) => {
+  const value = e.target.value;
+  setSearchBarVal(value);
+
+  try {
+    if (value.trim() === "") {
+      setFilteredNames([]);
+      return;
+    }
+
+    const tmpNames = await axiosInstance.get(`/messages/filteredUsers/${value}`);
+    setFilteredNames(tmpNames.data);
+  } catch (error) {
+    console.log("error! : ", error);
+    setFilteredNames([]); // Clear on error too
+  }
+};
 
   if (isUsersLoading) return <SidebarSkeleton />;
-
   return (
     <>
       <aside className="h-full w-20 lg:w-72 border-r border-base-300 flex flex-col transition-all duration-200">
@@ -314,12 +407,88 @@ const Sidebar = () => {
               </span>
             </div>
           )}
+          {!showGroupMembersView && (
+  <div className="px-2 py-1 mt-2">
+    <input 
+      type="text" 
+      placeholder="Search by name"
+      className="input input-bordered w-full max-w-xs"
+      onChange={displayUsers}
+    />
+  </div>
+)}
+         
         </div>
 
         <div className="overflow-y-auto w-full py-3">
           {isLoading ? (
             <div className="text-center py-4">Loading...</div>
-          ) : displayedItems.length > 0 ? (
+            
+          ) : filteredNames.length > 0 && searchBarVal.length > 0 ? (
+            filteredNames.map((item) => (
+              <button
+                key={item._id}
+                onClick={() => {
+                  if (!showGroupMembersView) {
+                    setSelectedUser(item);
+                  }
+                }}
+                className={`w-full p-3 flex items-center gap-3 hover:bg-base-300 transition-colors ${
+                  (!showGroupMembersView && selectedUser?._id === item._id) 
+                    ? "bg-base-300 ring-1 ring-base-300" 
+                    : ""
+                }`}
+              >
+                <div className="relative mx-auto lg:mx-0">
+                  <img
+                    src={item.profilePic || "/avatar.png"}
+                    alt={item.fullName || item.username}
+                    className="size-12 object-cover rounded-full"
+                  />
+                  {item.isOnline && (
+                    <span className="absolute bottom-0 right-0 size-3 bg-green-500 rounded-full ring-2 ring-zinc-900" />
+                  )}
+                </div>
+                <div className="hidden lg:block text-left min-w-0">
+                  <div className="font-medium truncate">{item.fullName || item.username}</div>
+<div className="grid grid-cols-2 gap-4 w-full">
+  <span className="text-sm text-zinc-400 text-left">
+    {item.isOnline ? "Online" : "Offline"}
+  </span>
+  <div className="flex justify-end gap-2">
+    {showGroupMembersView && item.isAdmin && (
+      <span className="text-sm text-blue-500">Admin</span>
+    )}
+    {showGroupMembersView && !item.isAdmin && item._id!=loggedInUserId && (
+      <button 
+        onClick={(e) => {
+          e.stopPropagation();
+          handleRemoveFromGroup(item._id,currentGroupId);
+        }}
+        className="text-red-500 hover:text-red-700 transition-colors"
+        title="Remove from group"
+      >
+        <UserX className="w-5 h-5" />
+      </button>
+    )}
+     {showGroupMembersView && !item.isAdmin && item._id!=loggedInUserId && (
+      <button 
+        onClick={(e) => {
+          e.stopPropagation();
+          handleMakeAdmin(item._id,currentGroupId);
+        }}
+        className="text-green-500 hover:text-green-700 transition-colors"
+        title="Promote to admin"
+      >
+        <Plus className="w-5 h-5" />
+      </button>
+    )}
+  </div>
+</div>
+                </div>
+              </button>
+            ))
+          ) : displayedItems.length > 0 && searchBarVal.length===0 ? (
             displayedItems.map((item) => (
               <button
                 key={item._id}
@@ -383,10 +552,13 @@ const Sidebar = () => {
                 </div>
               </button>
             ))
-          ) : (
+          )
+          
+           : (
             <div className="text-center text-zinc-500 py-4">
               {showGroupMembersView ? "No members in this group" : 
-               showOnlineOnly ? "No online users" : "No users available"}
+               searchBarVal.length!==0 ? "No matching users found" : 
+               showOnlineOnly && searchBarVal.length===0 ? "No online users" : "No users available" }
             </div>
           )}
 
