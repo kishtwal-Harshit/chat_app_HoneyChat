@@ -187,6 +187,18 @@ export const generateResponse = async (req, res) => {
   }
 };
 
+export const userName = async (req,res)=>{
+
+  try{
+    const user = req.user?._id;
+    const {userId} = req.params;
+    const  userName = await User.findById(userId).select("fullName");
+
+    return res.status(200).json({name : userName.fullName});
+  } catch(error){
+    return res.status(500).json({error : "internal server error in fetching user name"});
+  }
+}
 /*export const blockUser = async (req,res)=>{
 
   try{

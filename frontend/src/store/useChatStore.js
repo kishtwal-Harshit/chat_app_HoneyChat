@@ -1,18 +1,16 @@
+// store/useChatStore.js
 import { create } from "zustand";
 import toast from "react-hot-toast";
 import { axiosInstance } from "../lib/axios";
 import { useAuthStore } from "./useAuthStore";
+import { useNotificationStore } from "./useNotificationStore";
 
 export const useChatStore = create((set, get) => ({
-  // 1-to-1 Chat State
   messages: [],
   users: [],
   selectedUser: null,
   isUsersLoading: false,
   isMessagesLoading: false,
-
-  // Group Chat State
-  senderName : null,
   groupMessages: [],
   groups: [],
   groupMembers: [],
@@ -21,16 +19,15 @@ export const useChatStore = create((set, get) => ({
   isGroupsLoading: false,
   isGroupMessagesLoading: false,
 
-  // Common Methods
-  resetChatState: () => set({
-    selectedUser: null,
-    selectedGroup: null,
-    selectedGroupId: null,
-    messages: [],
-    groupMessages: []
-  }),
+  resetChatState: () =>
+    set({
+      selectedUser: null,
+      selectedGroup: null,
+      selectedGroupId: null,
+      messages: [],
+      groupMessages: [],
+    }),
 
-  // 1-to-1 Chat Methods
   getUsers: async () => {
     set({ isUsersLoading: true });
     try {
@@ -58,7 +55,10 @@ export const useChatStore = create((set, get) => ({
   sendMessage: async (messageData) => {
     const { selectedUser, messages } = get();
     try {
-      const res = await axiosInstance.post(`/messages/send/${selectedUser._id}`, messageData);
+      const res = await axiosInstance.post(
+        `/messages/send/${selectedUser._id}`,
+        messageData
+      );
       set({ messages: [...messages, res.data] });
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to send message");
@@ -68,22 +68,47 @@ export const useChatStore = create((set, get) => ({
   banUser: async () => {
     const { selectedUser } = get();
     try {
-      const res = await axiosInstance.post(`/messages/toggle-ban/${selectedUser._id}`);
+      const res = await axiosInstance.post(
+        `/messages/toggle-ban/${selectedUser._id}`
+      );
       toast.success(res.data?.message || "User ban status updated");
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to update ban status");
     }
   },
 
-  subscribeToMessages: () => {
-    const { selectedUser } = get();
-    if (!selectedUser) return;
-
+  subscribeToMessages: async () => {
     const socket = useAuthStore.getState().socket;
+    const { addNotification } = useNotificationStore.getState();
+    const { authUser } = useAuthStore.getState();
+      
+    socket.on("newMessage", async (newMessage) => {
+      const { selectedUser } = get();
+      const sender = await axiosInstance.get(`/messages/username/${newMessage.senderId}`);
+      if (newMessage.senderId === authUser._id) return;
 
-    socket.on("newMessage", (newMessage) => {
-      const isMessageSentFromSelectedUser = newMessage.senderId === selectedUser._id;
-      if (!isMessageSentFromSelectedUser) return;
+      if (!selectedUser || newMessage.senderId !== selectedUser._id) {
+        addNotification({
+          id: newMessage._id || Date.now().toString(),
+          type: "message",
+          senderId: newMessage.senderId,
+          senderName: sender.data.name || "Unknown",
+          message: newMessage.text || "New message",
+          image: newMessage.image || null,
+          file: newMessage.file || null,
+          timestamp: new Date(),
+          read: false,
+        });
+      
+        if (!selectedUser) {
+          toast.success(`New message from ${sender.data.name}`);
+        } else {
+          toast.success(
+            `New message from ${sender.data.name}`
+          );
+        }
+        return;
+      }
 
       set({
         messages: [...get().messages, newMessage],
@@ -96,7 +121,6 @@ export const useChatStore = create((set, get) => ({
     socket.off("newMessage");
   },
 
-  // Group Chat Methods
   getGroups: async () => {
     set({ isGroupsLoading: true });
     try {
@@ -109,7 +133,7 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-  getGroupMessages: async (groupId) => {
+   getGroupMessages: async (groupId) => {
     set({ isGroupMessagesLoading: true, selectedGroupId: groupId });
     try {
       const res = await axiosInstance.get(`/group/fetchMessages/${groupId}`);
@@ -229,7 +253,9 @@ unsubscribeFromGroupMessages: () => {
 
   addGroupMember: async (groupId, username) => {
     try {
-      const res = await axiosInstance.post(`/group/add/${groupId}/${username}`);
+      const res = await axiosInstance.post(
+        `/group/add/${groupId}/${username}`
+      );
       toast.success(res.data?.message || "Member added successfully");
       return res.data.member;
     } catch (error) {
@@ -242,10 +268,10 @@ unsubscribeFromGroupMessages: () => {
     try {
       const res = await axiosInstance.post(`/group/leave/${groupId}`);
       set({
-        groups: get().groups.filter(group => group._id !== groupId),
+        groups: get().groups.filter((group) => group._id !== groupId),
         selectedGroup: null,
         selectedGroupId: null,
-        groupMessages: []
+        groupMessages: [],
       });
       toast.success(res.data?.message || "Left group successfully");
     } catch (error) {
@@ -253,30 +279,26 @@ unsubscribeFromGroupMessages: () => {
     }
   },
 
-  setSelectedUser: (selectedUser) => set({ 
-    selectedUser,
-    selectedGroup: null,
-    selectedGroupId: null,
-    groupMessages: []
-  }),
+  setSelectedUser: (selectedUser) =>
+    set({
+      selectedUser,
+      selectedGroup: null,
+      selectedGroupId: null,
+      groupMessages: [],
+    }),
 
-  setSelectedGroupId: (groupId) => set({ 
-    selectedGroupId: groupId,
-    selectedUser: null,
-    messages: []
-  }),
+  setSelectedGroupId: (groupId) =>
+    set({
+      selectedGroupId: groupId,
+      selectedUser: null,
+      messages: [],
+    }),
 
-  setSelectedGroup: (group) => set({ 
-    selectedGroup: group?.name || null,
-    selectedGroupId: group?._id || null,
-    selectedUser: null,
-    messages: []
-  }),
-
-  // Add this method to manually add a message (for testing)
-  addTestMessage: (message) => {
-    set(state => ({
-      groupMessages: [...state.groupMessages, message]
-    }));
-  }
+  setSelectedGroup: (group) =>
+    set({
+      selectedGroup: group?.name || null,
+      selectedGroupId: group?._id || null,
+      selectedUser: null,
+      messages: [],
+    }),
 }));
