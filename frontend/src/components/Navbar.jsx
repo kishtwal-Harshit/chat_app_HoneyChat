@@ -52,86 +52,7 @@ const Navbar = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="relative">
-              <button
-                className="flex gap-2 items-center relative"
-                onClick={() => setShowNotifications(!showNotifications)}
-              >
-                <Bell className="size-4" />
-                <span className="hidden sm:inline">Notifications</span>
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1.3 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
-                    {unreadCount}
-                  </span>
-                )}
-              </button>
-
-              {showNotifications && (
-                <div className="absolute right-0 mt-2 w-80 bg-base-100 rounded-lg shadow-lg border border-base-300 z-50 max-h-96 overflow-y-auto">
-                 <div className="p-2 border-b border-base-300 flex justify-between items-start">
-  <h3 className="font-bold">Notifications</h3>
-  <div className="flex items-center gap-2">
-    <button
-      onClick={clearNotifications}
-      className="text-xs hover:text-primary"
-    >
-      Clear All
-    </button>
-    <button
-      onClick={() => setShowNotifications(false)}
-      className="text-xs text-white-500 hover:text-red-700 font-bold ml-2"
-      title="Close"
-    >
-      ✕
-    </button>
-  </div>
-</div>
-
-                  {notifications.length === 0 ? (
-                    <div className="p-4 text-center text-sm text-base-content/70">
-                      No notifications
-                    </div>
-                  ) : (
-                    <ul>
-                      {notifications.map((notification) => (
-                        <li
-                          key={notification.id}
-                          className={`p-3 border-b border-base-300 hover:bg-base-200 cursor-pointer ${
-                            !notification.read ? "bg-primary/10" : ""
-                          }`}
-                          onClick={() => handleNotificationClick(notification)}
-                        >
-                          <div className="flex items-start gap-2">
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium truncate">
-                                {notification.type === "group-message"
-                                  ? `${notification.senderName} in ${notification.groupName}`
-                                  : notification.senderName}
-                              </p>
-                              <p className="text-sm truncate">
-                                {notification.message ||
-                                  (notification.image
-                                    ? "Sent an image"
-                                    : notification.file
-                                    ? `Sent a file: ${notification.file.originalName}`
-                                    : "New message")}
-                              </p>
-                              <p className="text-xs text-base-content/50 mt-1">
-                                {new Date(notification.timestamp).toLocaleString()}
-                              </p>
-                            </div>
-                            {!notification.read && (
-                              <span className="h-2 w-2 rounded-full bg-primary"></span>
-                            )}
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              )}
-            </div>
-
+            {/* Settings - Always visible */}
             <Link
               to="/settings"
               className="btn btn-sm gap-2 transition-colors"
@@ -140,8 +61,91 @@ const Navbar = () => {
               <span className="hidden sm:inline">Settings</span>
             </Link>
 
+            {/* Auth-only features */}
             {authUser && (
               <>
+                {/* Notifications */}
+                <div className="relative">
+                  <button
+                    className="flex gap-2 items-center relative"
+                    onClick={() => setShowNotifications(!showNotifications)}
+                  >
+                    <Bell className="size-4" />
+                    <span className="hidden sm:inline">Notifications</span>
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1.3 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
+                        {unreadCount}
+                      </span>
+                    )}
+                  </button>
+
+                  {showNotifications && (
+                    <div className="absolute right-0 mt-2 w-80 bg-base-100 rounded-lg shadow-lg border border-base-300 z-50 max-h-96 overflow-y-auto">
+                      <div className="p-2 border-b border-base-300 flex justify-between items-start">
+                        <h3 className="font-bold">Notifications</h3>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={clearNotifications}
+                            className="text-xs hover:text-primary"
+                          >
+                            Clear All
+                          </button>
+                          <button
+                            onClick={() => setShowNotifications(false)}
+                            className="text-xs text-white-500 hover:text-red-700 font-bold ml-2"
+                            title="Close"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                      
+                      {notifications.length === 0 ? (
+                        <div className="p-4 text-center text-sm text-base-content/70">
+                          No notifications
+                        </div>
+                      ) : (
+                        <ul>
+                          {notifications.map((notification) => (
+                            <li
+                              key={notification.id}
+                              className={`p-3 border-b border-base-300 hover:bg-base-200 cursor-pointer ${
+                                !notification.read ? "bg-primary/10" : ""
+                              }`}
+                              onClick={() => handleNotificationClick(notification)}
+                            >
+                              <div className="flex items-start gap-2">
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium truncate">
+                                    {notification.type === "group-message"
+                                      ? `${notification.senderName} in ${notification.groupName}`
+                                      : notification.senderName}
+                                  </p>
+                                  <p className="text-sm truncate">
+                                    {notification.message ||
+                                      (notification.image
+                                        ? "Sent an image"
+                                        : notification.file
+                                        ? `Sent a file: ${notification.file.originalName}`
+                                        : "New message")}
+                                  </p>
+                                  <p className="text-xs text-base-content/50 mt-1">
+                                    {new Date(notification.timestamp).toLocaleString()}
+                                  </p>
+                                </div>
+                                {!notification.read && (
+                                  <span className="h-2 w-2 rounded-full bg-primary"></span>
+                                )}
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Profile and Logout */}
                 <Link to="/profile" className="btn btn-sm gap-2">
                   <User className="size-5" />
                   <span className="hidden sm:inline">Profile</span>
