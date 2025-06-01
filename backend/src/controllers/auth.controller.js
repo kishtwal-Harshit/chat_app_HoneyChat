@@ -2,6 +2,8 @@ import { generateToken } from "../lib/utils.js";
 import User from "../models/user.model.js";
 import bcrypt from "bcryptjs";
 import cloudinary from "../lib/cloudinary.js";
+import nodemailer from 'nodemailer';
+import jwt from "jsonwebtoken";
 
 export const signup = async (req, res) => {
   const { fullName, email, password } = req.body;
@@ -115,4 +117,82 @@ export const checkAuth = (req, res) => {
     console.log("Error in checkAuth controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
+};
+
+export const sendPasswordResetToken = async (req,res)=>{
+
+  try{
+    //const userId = req.user?._id;
+    const {email} = req.body;
+    //console.log(email);
+    const mailExist = await User.findOne({email});
+    if(!mailExist) return res.status(400).json({message : "no user with this email id exists"});
+    //console.log("here too");
+
+    const resetToken = jwt.sign({userId : mailExist._id},process.env.JWT_SECRET,{expiresIn : "1d",});
+
+     let url = process.env.MODE === "development" 
+    ? `http://localhost:5173/resetPassword?token=${resetToken}` 
+    : `https://chat-app-honeychat.onrender.com/resetPassword?token=${resetToken}`;
+    //let url = `http://localhost:5173/resetPassword?token=${resetToken}`;
+
+    const transporter = nodemailer.createTransport(
+      {
+        secure: true,
+        host: 'smtp.gmail.com',
+        port: 465,
+        auth: {
+          user: 'harshitkishtwal@gmail.com',
+          pass: 'quku myyi hzoh dgwi',
+        }
+      }
+    );
+
+    await transporter.sendMail({
+      to: email,
+      subject: "Reset Your HoneyChat Password",
+      html: `Reset your password here : ${url}`
+    })
+
+  } catch(error){
+    //console.log(error.message);
+    res.status(500).json({message : "internal server error in reset password controller"});
+  }
+}
+
+export const changePassword = async (req,res)=>{
+
+  try{
+    
+    const {token : resetToken} = req.params;
+    const {password : newPassword} = req.body;
+    //console.log(resetToken);
+    //console.log(newPassword);
+
+    const validated = jwt.verify(resetToken,process.env.JWT_SECRET);
+    if(!validated) return res.status(400).json({message : "invalid reset token"});
+    
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword,salt);
+
+    const user = await User.findById(validated.userId);
+
+    if(!user) return res.status(400).json({message : "user not found"});
+
+    const passwordChanged = await User.findByIdAndUpdate(
+      validated.userId,
+      {
+        $set : {password : hashedPassword},
+      },
+      {
+        new : true,
+      }
+    );
+
+    if(!passwordChanged) return res.status(400).json({message : "unable to change password"});
+    return res.status(200).json({message : "password changed successfully"});
+  } catch(error){
+    //console.log(error.message);
+    return res.status(500).json({message : "internal server error in changing password"});
+  } 
 };

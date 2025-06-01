@@ -2,19 +2,25 @@ import { useState } from "react";
 import { useAuthStore } from "../store/useAuthStore";
 import AuthImagePattern from "../components/AuthImagePattern";
 import { Link } from "react-router-dom";
-import { Eye, EyeOff, Loader2, Lock, Mail, MessageSquare } from "lucide-react";
+import { Eye, EyeOff, Loader2, Lock,MessageSquare } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
-const LoginPage = () => {
+const ResetPasswordPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
-  const { login, isLoggingIn } = useAuthStore();
-
+  const { changePassword,isLoggingIn } = useAuthStore();
+ const [searchParams] = useSearchParams();
+ const navigate = useNavigate();
+  const token = searchParams.get("token"); 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    login(formData);
+    const passwordChanged = await changePassword(formData,token);
+    //console.log(passwordChanged);
+    if(passwordChanged) navigate("/login");
   };
 
   return (
@@ -31,30 +37,13 @@ const LoginPage = () => {
               >
                 <MessageSquare className="w-6 h-6 text-primary" />
               </div>
-              <h1 className="text-2xl font-bold mt-2">Welcome Back</h1>
-              <p className="text-base-content/60">Sign in to your account</p>
+              <h1 className="text-2xl font-bold mt-2">Reset Password</h1>
+              <p className="text-base-content/60">Enter New Password</p>
             </div>
           </div>
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="form-control">
-              <label className="label">
-                <span className="label-text font-medium">Email</span>
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-base-content/40" />
-                </div>
-                <input
-                  type="email"
-                  className={`input input-bordered w-full pl-10`}
-                  placeholder="you@example.com"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                />
-              </div>
-            </div>
 
             <div className="form-control">
               <label className="label">
@@ -92,24 +81,16 @@ const LoginPage = () => {
                   Loading...
                 </>
               ) : (
-                "Sign in"
+                "Reset"
               )}
             </button>
           </form>
 
-          <div className="text-center">
+         <div className="text-center">
             <p className="text-base-content/60">
-              Don&apos;t have an account?{" "}
-              <Link to="/signup" className="link link-primary">
-                Create account
-              </Link>
-            </p>
-          </div>
-
-          <div className="text-center">
-            <p className="text-base-content/60">
-              <Link to="/forgotPassword" className="link link-primary">
-                Forgot Password
+              Already have an account?{" "}
+              <Link to="/login" className="link link-primary">
+                Sign in
               </Link>
             </p>
           </div>
@@ -125,4 +106,4 @@ const LoginPage = () => {
     </div>
   );
 };
-export default LoginPage;
+export default ResetPasswordPage;

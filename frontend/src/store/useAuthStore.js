@@ -70,6 +70,31 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
+  resetPassword : async (data)=>{
+
+    try{
+      await axiosInstance.post("/auth/resetPassword",data);
+      //console.log("reset password email recieved successfully");
+      toast.success("Please check your inbox, we have sent a password reset mail");
+    } catch(error){
+      console.log(error.data);
+      toast.error("email not recieved");
+    }
+  },
+  changePassword : async (data,token)=>{
+
+    try{
+      //console.log("frontend->",token);
+      await axiosInstance.post(`/auth/changePassword/${token}`,data);
+      //console.log("password changed successfully");
+      toast.success("password changed successfully");
+      return 1;
+    } catch(error){
+      console.log(error.data);
+      toast.error("error in changing password");
+    }
+  },
+
   updateProfile: async (data) => {
     set({ isUpdatingProfile: true });
     try {
